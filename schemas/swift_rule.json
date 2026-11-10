@@ -869,7 +869,8 @@
             "target",
             "text",
             "type",
-            "value"
+            "value",
+            "wrapped"
           ]
         }
       }

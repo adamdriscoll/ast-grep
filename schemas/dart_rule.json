@@ -948,7 +948,8 @@
             "type_parameters",
             "update",
             "uri",
-            "value"
+            "value",
+            "variance"
           ]
         }
       }

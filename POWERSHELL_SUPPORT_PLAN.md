@@ -1,5 +1,52 @@
 # Plan: PowerShell support in ast-grep
 
+## Implementation status
+
+Built-in PowerShell support is implemented for the Rust CLI, YAML rules, LSP,
+outline, schemas and Python bindings, using
+[`tree-sitter-powershell` 0.26.6](https://docs.rs/crate/tree-sitter-powershell/0.26.6)
+(MIT, ABI 15) as an optional `builtin-parser` dependency.
+
+- **Names:** `powershell`, `pwsh`, `ps1` (and `PowerShell`); files `*.ps1`,
+  `*.psm1`, `*.psd1`. Other extensions can be mapped with `languageGlobs`.
+  A built-in name wins over a custom language with the same name, while a
+  custom language's file extensions still win for path inference, matching
+  every other built-in language.
+- **Pattern contract (decided):**
+  - `$NAME` with only `A-Z`, `0-9`, `_` is a metavariable as in every other
+    language; `$$NAME`, `$$$NAME` and `$$$` work as usual (they are rewritten
+    to `${$$$NAME}` before parsing because the grammar rejects them).
+  - `$_` is always the literal pipeline variable. `$_NAME` remains the
+    anonymous wildcard.
+  - Every other variable is literal: anything with a lowercase letter
+    (`$Home`, `$args`, `$PSItem`), `$$`, `$?`, `$env:Path`, `${braced}`.
+    Variables are matched **case-insensitively**, like PowerShell itself, so
+    write `$Home` to match a literal `$HOME`. Repeated captures (`$A = $A + 1`)
+    also compare variables case-insensitively. Non-variable text (strings,
+    member names, commands) stays case-sensitive.
+- **Fix contract:** `$_` and `$_.Name` are literal; a `$` name followed by a
+  lowercase letter (`$Home`) is literal. In YAML rules an uncaptured
+  all-caps name such as `$HOME` is rejected as an undefined metavariable
+  (write `$Home`); in CLI `--rewrite`, an uncaptured all-caps name is kept
+  verbatim instead of being deleted.
+- **Core hooks:** `Language::leaf_text_equivalent`,
+  `is_literal_template_var` and `keep_unbound_template_var` default to the
+  previous behavior and are forwarded by the CLI, Python and NAPI wrappers.
+  Repeated metavariables now also compare nodes captured at different depths
+  of a single-child wrapper chain.
+- **Grammar limitations (0.26.6):** non-ASCII variable names (`$µA`, `$ÀB`)
+  and type names fail to parse; `ForEach-Object { ... }` at the start of a
+  statement is lexed as the `foreach` keyword (it parses inside a pipeline,
+  e.g. `$x | ForEach-Object { ... }`); `param(...)` followed by statements on
+  the same line inside a script block is an error.
+- **Schemas:** `schemas/powershell_rule.json` added. The generator's field
+  range was off by one and omitted every language's last field; the fix adds
+  that field (e.g. `value`) to the existing language schemas.
+  `schemas/languages.json` is not written by the generator and is unchanged.
+- **Deferred:** NAPI (`napi-lang` subset) and WASM/playground builds, editor
+  registrations, the documentation website and GitHub Action. Release binary
+  size impact and non-Windows targets are verified by CI rather than locally.
+
 ## Outcome and scope
 
 Add a built-in PowerShell parser for the Rust/CLI distribution, with dependable

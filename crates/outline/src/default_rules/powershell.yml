@@ -1,0 +1,84 @@
+id: powershell-function
+language: PowerShell
+role: item
+symbolType: function
+rule:
+  kind: function_statement
+  has:
+    kind: function_name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: powershell-class
+language: PowerShell
+role: item
+symbolType: class
+rule:
+  kind: class_statement
+  has:
+    kind: simple_name
+    nthChild: 1
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: powershell-enum
+language: PowerShell
+role: item
+symbolType: enum
+rule:
+  kind: enum_statement
+  has:
+    kind: simple_name
+    nthChild: 1
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: powershell-member-method
+language: PowerShell
+role: member
+parentRuleIds: [powershell-class]
+symbolType: method
+rule:
+  kind: class_method_definition
+  has:
+    kind: simple_name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: class_attribute
+      regex: '^(?i)hidden$'
+---
+id: powershell-member-property
+language: PowerShell
+role: member
+parentRuleIds: [powershell-class]
+symbolType: property
+rule:
+  kind: class_property_definition
+  has:
+    kind: variable
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: class_attribute
+      regex: '^(?i)hidden$'
+---
+id: powershell-enum-member
+language: PowerShell
+role: member
+parentRuleIds: [powershell-enum]
+symbolType: enumMember
+rule:
+  kind: enum_member
+  has:
+    kind: simple_name
+    pattern: $NAME
+name: $NAME
+isPublic: true

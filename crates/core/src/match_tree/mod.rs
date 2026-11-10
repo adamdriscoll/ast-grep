@@ -1,3 +1,4 @@
+use crate::language::Language;
 mod match_node;
 mod strictness;
 
@@ -134,10 +135,21 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
   // gh issue #1087, we make pattern matching a little bit more permissive
   // compare node text if at least one node is leaf
   if goal.is_named_leaf() || candidate.is_named_leaf() {
-    return goal.text() == candidate.text();
+    let (goal_text, cand_text) = (goal.text(), candidate.text());
+    return goal_text == cand_text
+      || (goal.kind_id() == candidate.kind_id()
+        && goal
+          .lang()
+          .leaf_text_equivalent(goal.kind_id(), &goal_text, &cand_text));
   }
   if goal.kind_id() != candidate.kind_id() {
-    return false;
+    // a metavariable may capture nodes at different depths of a single-child wrapper chain,
+    // e.g. `$A = $A + 1` in grammars that wrap every expression in precedence nodes
+    let (g, c) = (unwrap_single_child(goal), unwrap_single_child(candidate));
+    if g.node_id() == goal.node_id() && c.node_id() == candidate.node_id() {
+      return false;
+    }
+    return does_node_match_exactly(&g, &c);
   }
   let goal_children = goal.children();
   let cand_children = candidate.children();
@@ -149,6 +161,22 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
     .all(|(g, c)| does_node_match_exactly(&g, &c))
 }
 
+fn unwrap_single_child<'t, D: Doc>(node: &Node<'t, D>) -> Node<'t, D> {
+  let mut node = node.clone();
+  loop {
+    let next = {
+      let mut children = node.children();
+      match (children.next(), children.next()) {
+        (Some(child), None) if child.range() == node.range() => Some(child),
+        _ => None,
+      }
+    };
+    match next {
+      Some(child) => node = child,
+      None => return node,
+    }
+  }
+}
 #[cfg(test)]
 mod test {
   use super::*;
