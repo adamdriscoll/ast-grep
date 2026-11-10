@@ -21,11 +21,11 @@ pub enum TemplateFixError {}
 
 impl TemplateFix {
   pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
-    Ok(create_template(template, lang.meta_var_char(), &[]))
+    Ok(create_template(template, lang, &[]))
   }
 
   pub fn with_transform<L: Language>(tpl: &str, lang: &L, trans: &[String]) -> Self {
-    create_template(tpl, lang.meta_var_char(), trans)
+    create_template(tpl, lang, trans)
   }
 
   pub fn used_vars(&self) -> HashSet<&str> {
@@ -66,9 +66,12 @@ type Indent = usize;
 pub struct Template {
   fragments: Vec<String>,
   vars: Vec<(MetaVarExtract, Indent)>,
+  /// meta var char used to restore unbound vars verbatim, see `Language::keep_unbound_template_var`
+  unbound_literal: Option<char>,
 }
 
-fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> TemplateFix {
+fn create_template<L: Language>(tmpl: &str, lang: &L, transforms: &[String]) -> TemplateFix {
+  let mv_char = lang.meta_var_char();
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
@@ -76,6 +79,7 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
   while let Some(i) = tmpl[len + offset..].find(mv_char) {
     if let Some((meta_var, skipped)) =
       split_first_meta_var(&tmpl[len + offset + i..], mv_char, transforms)
+      && !lang.is_literal_template_var(meta_var.used_var(), &tmpl[len + offset + i + skipped..])
     {
       fragments.push(tmpl[len..len + offset + i].to_string());
       // NB we have to count ident of the full string
@@ -95,7 +99,12 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
     TemplateFix::Textual(tmpl[len..].to_string())
   } else {
     fragments.push(tmpl[len..].to_string());
-    TemplateFix::WithMetaVar(Template { fragments, vars })
+    let unbound_literal = lang.keep_unbound_template_var().then_some(mv_char);
+    TemplateFix::WithMetaVar(Template {
+      fragments,
+      vars,
+      unbound_literal,
+    })
   }
 }
 
@@ -113,6 +122,14 @@ fn replace_fixer<D: Doc>(fixer: &TemplateFix, env: &MetaVarEnv<'_, D>) -> Underl
   for ((var, indent), frag) in vars.zip(frags) {
     if let Some(bytes) = maybe_get_var(env, var, indent) {
       ret.extend_from_slice(&bytes);
+    } else if let Some(mv_char) = template.unbound_literal {
+      let sigils = match var {
+        MetaVarExtract::Multiple(_) => 3,
+        MetaVarExtract::Single(_) | MetaVarExtract::Transformed(_) => 1,
+      };
+      let mut raw: String = std::iter::repeat_n(mv_char, sigils).collect();
+      raw.push_str(var.used_var());
+      ret.extend_from_slice(&D::Source::decode_str(&raw));
     }
     ret.extend_from_slice(&D::Source::decode_str(frag));
   }
@@ -163,7 +180,7 @@ where
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
 pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<'_, D>) -> Underlying<D> {
-  let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
+  let fixer = create_template(template, nm.lang(), &[]);
   fixer.generate_replacement(nm)
 }
 
@@ -222,6 +239,12 @@ if (true) {
       "wrong replacement {replaced} {expected} {:?}",
       HashMap::from(env)
     );
+  }
+
+  #[test]
+  fn test_default_language_drops_unbound_var() {
+    // only languages opting in via `keep_unbound_template_var` keep uncaptured names
+    test_str_replace("let a = $B + $_", &[], "let a =  + ");
   }
 
   #[test]

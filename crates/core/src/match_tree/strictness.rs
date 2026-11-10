@@ -1,4 +1,5 @@
 use crate::Doc;
+use crate::language::Language;
 use crate::matcher::{PatternNode, kind_utils};
 use crate::meta_var::MetaVariable;
 use crate::node::Node;
@@ -32,6 +33,14 @@ fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
     return true;
   }
   skip_comment(n)
+}
+
+fn is_leaf_text_matched<D: Doc>(text: &str, cand_kind: u16, candidate: &Node<D>) -> bool {
+  let cand_text = candidate.text();
+  text == cand_text
+    || candidate
+      .lang()
+      .leaf_text_equivalent(cand_kind, text, &cand_text)
 }
 
 impl MatchStrictness {
@@ -68,7 +77,7 @@ impl MatchStrictness {
     // work around ast-grep/ast-grep#1419 and tree-sitter/tree-sitter-typescript#306
     // tree-sitter-typescript has wrong span of unnamed node so text would not match
     // just compare kind for unnamed node
-    if is_kind_matched && (!is_named || text == candidate.text()) {
+    if is_kind_matched && (!is_named || is_leaf_text_matched(text, cand_kind, candidate)) {
       return MatchOneNode::MatchedBoth;
     }
     if self.should_skip_comment() && skip_comment(candidate) {
@@ -86,7 +95,7 @@ impl MatchStrictness {
         (!is_named, !candidate.is_named())
       }
       M::Template => {
-        if text == candidate.text() {
+        if is_leaf_text_matched(text, cand_kind, candidate) {
           return MatchOneNode::MatchedBoth;
         } else {
           (false, !candidate.is_named())

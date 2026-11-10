@@ -1,4 +1,5 @@
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{Language, SupportLang};
@@ -135,6 +136,34 @@ impl Language for NapiLang {
     match self {
       Builtin(b) => b.expando_char(),
       Custom(c) => c.expando_char(),
+    }
+  }
+
+  fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
+    match self {
+      Builtin(b) => b.extract_meta_var(source),
+      Custom(c) => c.extract_meta_var(source),
+    }
+  }
+
+  #[inline]
+  fn leaf_text_equivalent(&self, kind_id: u16, goal: &str, candidate: &str) -> bool {
+    match self {
+      Builtin(b) => b.leaf_text_equivalent(kind_id, goal, candidate),
+      Custom(c) => c.leaf_text_equivalent(kind_id, goal, candidate),
+    }
+  }
+  fn is_literal_template_var(&self, name: &str, rest: &str) -> bool {
+    match self {
+      Builtin(b) => b.is_literal_template_var(name, rest),
+      Custom(c) => c.is_literal_template_var(name, rest),
+    }
+  }
+
+  fn keep_unbound_template_var(&self) -> bool {
+    match self {
+      Builtin(b) => b.keep_unbound_template_var(),
+      Custom(c) => c.keep_unbound_template_var(),
     }
   }
 

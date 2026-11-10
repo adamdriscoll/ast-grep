@@ -31,6 +31,8 @@ pub const DEFAULT_OUTLINE_RULES: &str = concat!(
   "\n---\n",
   include_str!("default_rules/php.yml"),
   "\n---\n",
+  include_str!("default_rules/powershell.yml"),
+  "\n---\n",
   include_str!("default_rules/markdown.yml"),
 );
 

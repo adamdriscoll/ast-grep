@@ -462,6 +462,43 @@ fix: |-
 }
 
 #[tokio::test]
+async fn test_powershell_code_edit() {
+  let yamls = r"
+id: no-write-host
+message: Avoid Write-Host
+language: powershell
+rule:
+  pattern: Write-Host $A
+fix: Write-Output $A $Home $_
+";
+  let mut client = create_lsp_framed(yamls).await;
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.ps1";
+  let file_content = "$items | % { Write-Host $_ }\n";
+  send_did_open_framed(&mut client, file_uri, "powershell", file_content).await;
+
+  let diagnostics = &wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received")
+    .as_array()
+    .expect("Diagnostics should be an array")
+    .to_owned();
+  assert_eq!(diagnostics.len(), 1, "Expected 1 diagnostic");
+
+  let code_action = request_code_action(&mut client, file_uri, &diagnostics[0])
+    .await
+    .expect("No code action response");
+  let actions = code_action["result"]
+    .as_array()
+    .expect("Result should be an array");
+  assert_eq!(actions.len(), 1, "No code actions returned");
+  let fixed_text = apply_all_code_actions(file_content, actions);
+  assert!(
+    fixed_text.contains("{ Write-Output $_ $Home $_ }"),
+    "{fixed_text}"
+  );
+}
+
+#[tokio::test]
 async fn test_diagnostic_range_in_utf16() {
   let yamls = r"
 id: no-console-rule

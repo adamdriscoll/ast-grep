@@ -5,7 +5,7 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_language::{
   Alias, Bash, C, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
-  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, Zig,
+  Kotlin, Lua, Php, PowerShell, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, Zig,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema, schema_for};
 use serde_json::{Value, to_writer_pretty};
@@ -41,6 +41,7 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Kotlin, "kotlin")?;
   generate_lang_schema(Lua, "lua")?;
   generate_lang_schema(Php, "php")?;
+  generate_lang_schema(PowerShell, "powershell")?;
   generate_lang_schema(Python, "python")?;
   generate_lang_schema(Ruby, "ruby")?;
   generate_lang_schema(Rust, "rust")?;
@@ -147,8 +148,8 @@ fn get_named_nodes(lang: &TSLanguage) -> Vec<Value> {
 
 fn get_fields(lang: &TSLanguage) -> Vec<Value> {
   let enum_values = BTreeSet::from_iter(
-    // Field IDs start from 1 in tree-sitter.
-    (1..lang.field_count())
+    // Field IDs start from 1 in tree-sitter and `field_count` is the last valid ID.
+    (1..=lang.field_count())
       .filter_map(|id| lang.field_name_for_id(id as u16).map(|s| s.to_string())),
   );
 

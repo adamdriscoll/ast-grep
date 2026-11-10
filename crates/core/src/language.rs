@@ -35,6 +35,29 @@ pub trait Language: Clone + 'static {
   fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
     extract_meta_var(source, self.expando_char())
   }
+
+  /// Whether two named leaf nodes of `kind_id` with different texts are still equivalent.
+  /// It is only consulted after an exact text comparison fails, so the default never
+  /// relaxes matching. Languages can override it, e.g. for case-insensitive identifiers.
+  #[inline]
+  fn leaf_text_equivalent(&self, _kind_id: u16, _goal: &str, _candidate: &str) -> bool {
+    false
+  }
+
+  /// Whether `$NAME` in a fix template is literal text rather than a meta variable.
+  /// `name` excludes the meta var char(s) and `rest` is the template text after the name.
+  /// Useful when the language itself uses `$` names.
+  #[inline]
+  fn is_literal_template_var(&self, _name: &str, _rest: &str) -> bool {
+    false
+  }
+
+  /// Whether a fix template keeps a meta variable without a captured value verbatim.
+  /// By default an unbound meta variable is replaced with an empty string.
+  #[inline]
+  fn keep_unbound_template_var(&self) -> bool {
+    false
+  }
   /// Return the file language from path. Return None if the file type is not supported.
   fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
     // TODO: throw panic here if not implemented properly?

@@ -79,6 +79,9 @@ pub fn language_nix() -> TSLanguage {
 pub fn language_php() -> TSLanguage {
   conditional_lang!(tree_sitter_php, "tree-sitter-php", LANGUAGE_PHP_ONLY)
 }
+pub fn language_powershell() -> TSLanguage {
+  conditional_lang!(tree_sitter_powershell, "tree-sitter-powershell")
+}
 pub fn language_python() -> TSLanguage {
   conditional_lang!(tree_sitter_python, "tree-sitter-python")
 }

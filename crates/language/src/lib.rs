@@ -35,6 +35,7 @@ mod markdown;
 mod nix;
 mod parsers;
 mod php;
+mod powershell;
 mod python;
 mod ruby;
 mod rust;
@@ -46,6 +47,7 @@ mod zig;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
+pub use powershell::PowerShell;
 
 use ast_grep_core::Node;
 use ast_grep_core::meta_var::MetaVariable;
@@ -280,6 +282,7 @@ pub enum SupportLang {
   Markdown,
   Nix,
   Php,
+  PowerShell,
   Python,
   Ruby,
   Rust,
@@ -297,8 +300,8 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
-      Yaml, Zig,
+      Kotlin, Lua, Markdown, Nix, Php, PowerShell, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx,
+      TypeScript, Yaml, Zig,
     ]
   }
 
@@ -398,6 +401,7 @@ impl_aliases! {
   Markdown => &["markdown", "md"],
   Nix => &["nix"],
   Php => &["php"],
+  PowerShell => &["powershell", "pwsh", "ps1"],
   Python => &["py", "python"],
   Ruby => &["rb", "ruby"],
   Rust => &["rs", "rust"],
@@ -448,6 +452,7 @@ macro_rules! execute_lang_method {
       S::Markdown => Markdown.$method($($pname,)*),
       S::Nix => Nix.$method($($pname,)*),
       S::Php => Php.$method($($pname,)*),
+      S::PowerShell => PowerShell.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
@@ -476,6 +481,9 @@ impl Language for SupportLang {
   impl_lang_method!(meta_var_char, () => char);
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
+  impl_lang_method!(leaf_text_equivalent, (kind_id: u16, goal: &str, candidate: &str) => bool);
+  impl_lang_method!(is_literal_template_var, (name: &str, rest: &str) => bool);
+  impl_lang_method!(keep_unbound_template_var, () => bool);
   impl_lang_method!(build_pattern, (builder: &PatternBuilder) => Result<Pattern, PatternError>);
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     execute_lang_method! { self, pre_process_pattern, query }
@@ -523,6 +531,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Markdown => &["markdown", "md"],
     Nix => &["nix"],
     Php => &["php"],
+    PowerShell => &["ps1", "psm1", "psd1"],
     Python => &["py", "py3", "pyi", "bzl", "bazel"],
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
